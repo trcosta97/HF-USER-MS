@@ -8,11 +8,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.sql.SQLException;
+import java.util.Optional;
+
 @Service
 public class UserService {
 
     @Autowired
     private UserRepository repository;
+
+    @Autowired
+    private ValidationService validationService;
 
     public User save(User user) {
         return repository.save(user);
@@ -54,16 +60,25 @@ public class UserService {
         repository.save(user);
     }
 
-    public void delete(Long id) {
+    public void delete(Long id) throws SQLException {
+        Optional<User> optionalUser = repository.findById(id);
+        if(optionalUser.isPresent()){
+            User user = optionalUser.get();
+            if(user.getAddresses().size() > 0){
+                throw new SQLException("User has addresses");
+            }
+            repository.delete(user);
+            }else{
+                throw new SQLException("User not found");
+        }
         repository.deleteById(id);
     }
 
     public void deactivateById(Long id) {
         var user = findById(id);
-        user.setActive(false);
-        repository.save(user);
+        if (validationService.canDeactivate(user)) {
+            user.setActive(false);
+            repository.save(user);
+        }
     }
-
-
-
 }
